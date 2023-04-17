@@ -1,1 +1,1 @@
-# kalshi-simulation
+# Kalshi Visualization and Simulation Engine
