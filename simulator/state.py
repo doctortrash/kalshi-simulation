@@ -10,6 +10,13 @@ class TradingState():
         self.position: int = 0
         self.pnl = 0 
 
+        self.yes: int = 0
+        self.no: int = 0
+        self.total_yes_price: float = 0 
+        self.total_no_price: float = 0
+        self.min = min
+        self.max = max
+
         self.bid = {
             "price": 0, 
             "quantity": 0, 
@@ -123,7 +130,18 @@ class TradingState():
                             self.bid["quantity"] = max(0, self.bid["quantity"] - botFill)
                             self.bid["queue"] = max(1, self.bid["queue"] - fillVolume)
                             self.position += botFill
-                            self.pnl -= botFill * (self.bid["price"] / 100)
+
+                            self.yes += botFill
+                            self.total_yes_price += botFill * (self.bid["price"] / 100)
+
+                            # Yes resolution 
+                            if self.sp_price >= self.min and self.sp_price <= self.max:
+                                self.pnl = (self.yes - self.total_yes_price) - (self.total_no_price)
+                            # No resolution
+                            else: 
+                                self.pnl = (self.no - self.total_no_price) - (self.total_yes_price)
+
+                            # self.pnl -= botFill * (self.bid["price"] / 100)
 
                             print(f"Bot bid order filled. {botFill} at {bestBid}. Current position: {self.position}")
                             print(f"Current PnL: {self.pnl}")
@@ -131,7 +149,18 @@ class TradingState():
                     # Bot market order
                     elif bot: 
                         self.position -= fillVolume
-                        self.pnl += fillVolume * (bestBid / 100)
+
+                        self.no += fillVolume
+                        self.total_no_price += fillVolume * ((100 - bestBid) / 100)
+
+                        # Yes resolution
+                        if self.sp_price >= self.min and self.sp_price <= self.max:
+                            self.pnl = (self.yes - self.total_yes_price) - (self.total_no_price)
+                        # No resolution
+                        else:
+                            self.pnl = (self.no - self.total_no_price) - (self.total_yes_price)
+
+                        # self.pnl += fillVolume * (bestBid / 100)
                         print(f"Bot market ask order filled. {fillVolume} at {bestBid}. Current position: {self.position}")
                         print(f"Current PnL: {self.pnl}")
 
@@ -172,7 +201,18 @@ class TradingState():
                             self.ask["quantity"] = max(0, self.ask["quantity"] - botFill)
                             self.ask["queue"] = max(1, self.ask["queue"] - fillVolume)
                             self.position -= botFill
-                            self.pnl += botFill * (self.ask["price"] / 100)
+
+                            self.no += botFill
+                            self.total_no_price += botFill * ((100 - bestAsk) / 100)
+
+                            # Yes resolution
+                            if self.sp_price >= self.min and self.sp_price <= self.max:
+                                self.pnl = (self.yes - self.total_yes_price) - (self.total_no_price)
+                            # No resolution
+                            else:
+                                self.pnl = (self.no - self.total_no_price) - (self.total_yes_price)
+
+                            # self.pnl += botFill * (self.ask["price"] / 100)
 
                             print(f"Bot ask order filled. {botFill} at {bestAsk}. Current position: {self.position}")
                             print(f"Current PnL: {self.pnl}")
@@ -180,7 +220,18 @@ class TradingState():
                     # Bot market order
                     elif bot: 
                         self.position += fillVolume
-                        self.pnl -= fillVolume * (bestAsk / 100)
+
+                        self.yes += fillVolume
+                        self.total_yes_price += fillVolume * (bestAsk / 100)
+
+                        # Yes resolution
+                        if self.sp_price >= self.min and self.sp_price <= self.max:
+                            self.pnl = (self.yes - self.total_yes_price) - (self.total_no_price)
+                        # No resolution
+                        else:
+                            self.pnl = (self.no - self.total_no_price) - (self.total_yes_price)
+
+                        # self.pnl -= fillVolume * (bestAsk / 100)
                         print(f"Bot market bid order filled. {fillVolume} at {bestAsk}. Current position: {self.position}")
                         print(f"Current PnL: {self.pnl}")
 

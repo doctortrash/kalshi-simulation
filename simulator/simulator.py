@@ -14,7 +14,6 @@ class Simulator():
         self.strat = strat
         self.events = pd.DataFrame(columns=["Time", "PnL", "Position", "AdjPnL", "SP_Price"])
         self.last_adj_pnl = -1 
-        self.counter = 0 
 
     def simulate(self) -> None: 
         
@@ -26,6 +25,9 @@ class Simulator():
         # Round priceMax up to the nearest 50
         priceMax = (int(priceMax / 50) * 50 + 50) - 0.01
 
+        self.state.min = priceMin
+        self.state.max = priceMax
+
         # Iterate through data
         for index, row in self.data.iterrows():
             # print(index)
@@ -34,6 +36,21 @@ class Simulator():
 
             if instrument == 0: 
                 self.state.updateSP(row["Price"])
+
+                pnl = 0
+                # Yes resolution
+                if self.state.sp_price >= self.state.min and self.state.sp_price <= self.state.max:
+                    pnl = (self.state.yes - self.state.total_yes_price) - (self.state.total_no_price)
+                # No resolution
+                else:
+                    pnl = (self.state.no - self.state.total_no_price) - (self.state.total_yes_price)
+
+                if pnl != self.state.pnl: 
+                    self.state.pnl = pnl
+                    newRow = [time, round(self.state.pnl, 2), self.state.position, self.state.pnl, self.state.sp_price]
+                    newRow[3] = round(newRow[3], 2)
+                    self.events.loc[len(self.events)] = newRow
+
                 self.strat.spUpdate()
             elif instrument == 1: 
                 operation = row["Operation"]
@@ -50,19 +67,8 @@ class Simulator():
                     continue
 
                 newRow = [time, round(self.state.pnl, 2), self.state.position, self.state.pnl, self.state.sp_price]
-                if self.state.position > 0 and self.state.sp_price >= priceMin and self.state.sp_price <= priceMax:
-                    newRow[3] = self.state.pnl + self.state.position
-                elif self.state.position < 0 and (self.state.sp_price < priceMin or self.state.sp_price > priceMax):
-                    newRow[3] = self.state.pnl - self.state.position
-                
                 newRow[3] = round(newRow[3], 2)
                 self.events.loc[len(self.events)] = newRow
-                
-                # if newRow[3] != self.last_adj_pnl or self.counter % 100 == 0: 
-                #     self.events.loc[len(self.events)] = newRow
-                #     self.last_adj_pnl = newRow[3]
-                
-                # self.counter += 1
 
                 self.strat.kalshiUpdate()
 
@@ -76,16 +82,16 @@ class Simulator():
             marketResolution = False
         
         if self.state.position > 0 and marketResolution: 
-            print(f"Settling {self.state.position} contracts at $1. Total PnL: ${self.state.pnl + self.state.position}")
+            print(f"Settling {self.state.position} contracts at $1. Total PnL: ${(self.state.yes - self.state.total_yes_price) - self.state.total_no_price}")
         elif self.state.position > 0 and not marketResolution:
-            print(f"Settling {self.state.position} contracts at $0. Total PnL: ${self.state.pnl}")
+            print(f"Settling {self.state.position} contracts at $0. Total PnL: ${(self.state.no - self.state.total_no_price) - self.state.total_yes_price}")
         elif self.state.position < 0 and marketResolution: 
-            print(f"Settling {self.state.position} contracts at $0. Total PnL: ${self.state.pnl}")
+            print(f"Settling {self.state.position} contracts at $0. Total PnL: ${(self.state.yes - self.state.total_yes_price) - self.state.total_no_price}")
         elif self.state.position < 0 and not marketResolution:
-            print(f"Settling {self.state.position} contracts at $1. Total PnL: ${self.state.pnl - self.state.position}")
+            print(f"Settling {self.state.position} contracts at $1. Total PnL: ${(self.state.no - self.state.total_no_price) - self.state.total_yes_price}")
         
         # Write events to CSV
-        self.events.to_csv("events.csv", index=True)
+        self.events.to_csv("events.csv", index=True, index_label="ID")
 
 
             
